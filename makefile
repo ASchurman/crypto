@@ -1,6 +1,6 @@
 CPP      = cl
 CPPFLAGS = /EHsc /std:c++20
-SOURCES  = main.cpp aes.cpp
+SOURCES  = main.cpp aes.cpp aesTests.cpp
 OBJS     = $(SOURCES:.cpp=.obj)
 
 all: aes.exe
