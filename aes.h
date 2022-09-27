@@ -12,13 +12,11 @@
  * This was done for fun. Obviously don't use any of this code in any security-critical application.
  * 
  * TODO
- * 1. More gracefully handle incorrectly padded ciphertext
- * 2. Test looking for incorrectly padded ciphertext
- * 3. Key derivation from password
- * 4. Tests for key derivation from password
- * 5. Write main to actually encrypt/decrypt files, not just run the tests
- * 6. Implement larger key sizes
- * 7. CBC mode, not just ECB
+ * - Key derivation from password
+ * - Tests for key derivation from password
+ * - Write main to actually encrypt/decrypt files, not just run the tests
+ * - Implement larger key sizes
+ * - CBC mode, not just ECB
  */
 
 class AES
@@ -65,9 +63,14 @@ private:
     void cleanup();
 
     // Test Functions //
-    void testSteps(); // tests that check individual steps of the algorithm
-    void testEncryptDecrypt(); // tests that use NIST's test vectors
-    void testEndToEnd(const std::string& plaintextFilename); // tests that encrypt and decrypt a file and check it's not changed
+    // tests that check individual steps of the algorithm
+    void testSteps();
+    // tests that use NIST's test vectors
+    void testEncryptDecrypt();
+    // tests that encrypt and decrypt a file and check it's not changed
+    void testEndToEnd(const std::string& plaintextFilename);
+    // test decrypting ciphertext with improper padding or a non-integer number of blocks
+    void testMalformedCiphertext(const std::string& ciphertextFilename);
 
     static const std::array<uint8_t, 256> SBOX;
     static const std::array<uint8_t, 256> INV_SBOX;

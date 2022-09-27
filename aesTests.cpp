@@ -11,17 +11,34 @@
 
 void AES::test()
 {
+    std::cout << "Testing AES...\n";
+    srand(time(NULL));
     cleanup();
+    std::cout << "Running testSteps()...\n";
     testSteps();
     cleanup();
+    std::cout << "Running testEncyptDecrypt()...\n";
     testEncryptDecrypt();
     cleanup();
+    std::cout << "Running testEndToEnd()...\n";
     testEndToEnd(".\\testFiles\\texttest.txt");
     cleanup();
     testEndToEnd(".\\testFiles\\largetest.txt");
     cleanup();
-    testEndToEnd(".\\testFiles\\TheCallingOfSaintMatthew.jpg");
+    std::cout << "Running testMalformedCiphertext()...\n";
+    testMalformedCiphertext(".\\testFiles\\ciphertext1.test"); // test malformed padding
     cleanup();
+    testMalformedCiphertext(".\\testFiles\\texttest.txt"); // test non-integer number of blocks
+    std::cout << "Done testing AES!\n";
+}
+
+void getRandomKey(std::vector<uint8_t>& key, int numBytes)
+{
+    key.resize(numBytes);
+    for (int i = 0; i < numBytes; i++)
+    {
+        key[i] = rand() % 256;
+    }
 }
 
 void AES::testSteps()
@@ -405,12 +422,7 @@ void AES::testEndToEnd(const std::string& plaintextFilename)
     assert(finalPlaintextFile);
 
     std::vector<uint8_t> key;
-    key.resize(16);
-    srand(time(NULL));
-    for (int i = 0; i < 16; i++)
-    {
-        key[i] = rand() % 256;
-    }
+    getRandomKey(key, 16);
     keyExpansion(key);
 
     encrypt(plaintextFile, ciphertextFile);
@@ -439,4 +451,35 @@ void AES::testEndToEnd(const std::string& plaintextFilename)
     finalPlaintextFile.close();
     std::filesystem::remove(ciphertextFilename);
     std::filesystem::remove(finalPlaintextFilename);
+}
+
+void AES::testMalformedCiphertext(const std::string& ciphertextFilename)
+{
+    std::string plaintextFilename = "plaintext.tmp";
+    std::ofstream plaintextFile;
+    plaintextFile.open(plaintextFilename, std::ios::out | std::ios::binary);
+    assert(plaintextFile);
+
+    std::ifstream ciphertextFile;
+    ciphertextFile.open(ciphertextFilename, std::ios::in | std::ios::binary);
+    assert(ciphertextFile);
+
+    std::vector<uint8_t> key;
+    getRandomKey(key, 16);
+    keyExpansion(key);
+
+    bool foundException = false;
+    try
+    {
+        decrypt(ciphertextFile, plaintextFile);
+    }
+    catch(const std::invalid_argument& e)
+    {
+        foundException = true;
+    }
+    assert(foundException);
+    
+    plaintextFile.close();
+    ciphertextFile.close();
+    std::filesystem::remove(plaintextFilename);
 }

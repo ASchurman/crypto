@@ -2,6 +2,7 @@
 #include <cassert>
 #include <algorithm>
 #include <fstream>
+#include <stdexcept>
 
 const std::array<uint8_t, 256> AES::SBOX =
  {0x63 ,0x7c ,0x77 ,0x7b ,0xf2 ,0x6b ,0x6f ,0xc5 ,0x30 ,0x01 ,0x67 ,0x2b ,0xfe ,0xd7 ,0xab ,0x76
@@ -219,7 +220,11 @@ void AES::decrypt(std::istream& ciphertext, std::ostream& plaintext, bool usePad
         {
             // We should always have an integer number of blocks when decrypting,
             // because we pad the input to have an integer number of blocks.
-            assert(ciphertext.gcount() == 0); // TODO handle this more gracefully
+            if (ciphertext.gcount() != 0)
+            {
+                // The ciphertext was malformed!
+                throw std::invalid_argument("The ciphertext is malformed.");
+            }
             break;
         }
 
@@ -254,13 +259,9 @@ void AES::decrypt(std::istream& ciphertext, std::ostream& plaintext, bool usePad
             {
                 if (m_state[i] != padding)
                 {
-                    for (int j = 0; j < 16; j++)
-                    {
-                        std::cout << std::hex << static_cast<int>(m_state[j]);
-                        std::cout << "\n";
-                    }
-                    // Problem! We expected 'padding' number of padding bytes, but found fewer
-                    assert(false); // TODO handle this more gracefully
+                    // Problem! We expected 'padding' number of padding bytes, but found fewer.
+                    // The ciphertext was malformed!
+                    throw std::invalid_argument("The ciphertext is malformed.");
                 }
             }
             numBytesToWrite = 16 - padding;
