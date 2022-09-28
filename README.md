@@ -30,6 +30,11 @@ Optional arguments include:
 * `-t`
     Test. Instead of encrypting/decrypting a file, run tests to verify that aes.exe is working correctly.
 
+For example, to encrypt a file secrets.txt to a file encryptedSecrets.bin, using an AES-128 key in the file key.bin, run:
+```
+aes.exe secrets.txt -e -k key.bin -o encryptedSecrets.bin
+```
+
 ## Roadmap
 As my leisure time permits, here are my future tasks for this project:
 - Implement AES-192 and AES-256
