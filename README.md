@@ -13,24 +13,22 @@ Run aes.exe from the command line, with the first argument being the file to enc
 aes.exe [plaintext/ciphertext file] [options]
 ```
 Other required arguments include:
-```
--k [key file]
+
+* `-k [key file]`
     Provides the file containing AES key. For now, only AES-128 is supported, so the file must contain exactly 16 bytes.
--e
--d
+* `-e` or `-d`
     Indicates whether to encrypt (-e) or decrypt (-d) the input file.
-```
+
 Optional arguments include:
-```
--o [output file]
+
+* `-o [output file]`
     Indicates where the output of the encrypt/decrypt operation should be written. Defaults to aes-output.bin. Will not overwrite existing file unless the -f option is used.
--f
+* `-f`
     Force. Overwrites output file if it already exists.
--v
+* `-v`
     Verbose. More about the status of the encryption/decryption will be written to cout.
--t
+* `-t`
     Test. Instead of encrypting/decrypting a file, run tests to verify that aes.exe is working correctly.
-```
 
 ## Roadmap
 As my leisure time permits, here are my future tasks for this project:
