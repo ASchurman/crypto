@@ -14,7 +14,6 @@
  * TODO
  * - Key derivation from password
  * - Tests for key derivation from password
- * - Write main to actually encrypt/decrypt files, not just run the tests
  * - Implement larger key sizes
  * - CBC mode, not just ECB
  */
