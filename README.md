@@ -1,5 +1,3 @@
-# Crypto
-
 Let's implement some cryptographic algorithms for fun!  **This project is just for fun. Obviously don't use any of this code in any security-critical application!**
 
 For now, only AES in ECB mode is implemented.
@@ -42,3 +40,4 @@ Before running the tests with `aes.exe -t`, the test files must be generated in 
 As my leisure time permits, here are my future tasks for this project:
 - Implement AES modes other than the ECB mode, which, while simple, should never be used. Start with CBC mode.
 - Derive AES keys from passwords rather than using a key read from a file.
+- Implement other cryptographic algorithms.
