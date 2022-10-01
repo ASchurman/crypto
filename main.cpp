@@ -37,8 +37,7 @@ int main(int argc, char** argv)
     // Check for whether we're testing
     if (optionExists(args, "-t"))
     {
-        AES aes;
-        aes.test();
+        AES::test();
         return 0;
     }
 
@@ -84,16 +83,17 @@ int main(int argc, char** argv)
         return EBADF;
     }
     std::vector<uint8_t> key;
-    key.resize(16);
-    keyfile.read(reinterpret_cast<char*>(key.data()), 16);
-    if (!keyfile)
+    key.resize(32); // max keysize is 32 bytes, AES-256
+    keyfile.read(reinterpret_cast<char*>(key.data()), 32);
+    key.resize(keyfile.gcount());
+    if (keyfile.gcount() < 16)
     {
-        std::cerr << "Error: Failed to read 16-byte AES-128 key from key file: " << keyFilename << "\n";
+        std::cerr << "Error: Failed to read 16-byte AES key from key file: " << keyFilename << "\n";
         return EBADF;
     }
     if (keyfile.peek() != EOF)
     {
-        std::cerr << "Error: Key is larger than 16 bytes. We currently only support AES-128.\n";
+        std::cerr << "Error: Key is larger than 32 bytes. The AES maximum keysize is 32 bytes.\n";
         return EINVAL;
     }
 
@@ -118,28 +118,36 @@ int main(int argc, char** argv)
     }
 
     // Call encrypt/decrypt
-    AES aes(key);
-    if (eFlag)
+    try
     {
-        if (verbose)
+        AES aes(key);
+        if (eFlag)
         {
-            std::cout << "Calling encrypt\n";
-            std::cout << "Plaintext file: " << inputFilename << "\n";
-            std::cout << "Ciphertext file: " << outputFilename << "\n";
-            std::cout << "Key file: " << keyFilename << "\n";
+            if (verbose)
+            {
+                std::cout << "Calling encrypt\n";
+                std::cout << "Plaintext file: " << inputFilename << "\n";
+                std::cout << "Ciphertext file: " << outputFilename << "\n";
+                std::cout << "Key file: " << keyFilename << "\n";
+            }
+            aes.encrypt(inputFile, outputFile);
         }
-        aes.encrypt(inputFile, outputFile);
+        else
+        {
+            if (verbose)
+            {
+                std::cout << "Calling decrypt\n";
+                std::cout << "Ciphertext file: " << inputFilename << "\n";
+                std::cout << "Plaintext file: " << outputFilename << "\n";
+                std::cout << "Key file: " << keyFilename << "\n";
+            }
+            aes.decrypt(inputFile, outputFile);
+        }
     }
-    else
+    catch (std::exception& e)
     {
-        if (verbose)
-        {
-            std::cout << "Calling decrypt\n";
-            std::cout << "Ciphertext file: " << inputFilename << "\n";
-            std::cout << "Plaintext file: " << outputFilename << "\n";
-            std::cout << "Key file: " << keyFilename << "\n";
-        }
-        aes.decrypt(inputFile, outputFile);
+        std::cerr << e.what() << "\n";
+        return EINVAL;
     }
     return 0;
 }

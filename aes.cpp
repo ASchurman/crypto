@@ -153,7 +153,10 @@ const std::array<uint8_t, 10> AES::RC =
 
 AES::AES(const std::vector<uint8_t>& key)
 {
-    keyExpansion(key);
+    if (!keyExpansion(key))
+    {
+        throw std::invalid_argument("Error: The key is invalid. Key must be 128, 192, or 256 bits.");
+    }
 }
 
 void AES::cleanup()
@@ -189,8 +192,8 @@ void AES::encrypt(std::istream& plaintext, std::ostream& ciphertext)
         // Initial round key addition
         addRoundKey(0);
 
-        // For now, only implement AES-128, which means 10 rounds
-        int numRounds = 10;
+        // Iterate over the rounds...
+        int numRounds = m_roundKeys.size() - 1;
         for (int i = 1; i < numRounds; i++)
         {
             subBytes();
@@ -223,13 +226,13 @@ void AES::decrypt(std::istream& ciphertext, std::ostream& plaintext, bool usePad
             if (ciphertext.gcount() != 0)
             {
                 // The ciphertext was malformed!
-                throw std::invalid_argument("The ciphertext is malformed.");
+                // This could be a problem with the ciphertext. Or it could be a bad key.
+                throw std::invalid_argument("Error: Decryption failed.");
             }
             break;
         }
 
-        // For now, only implement AES-128, which means 10 rounds
-        int numRounds = 10;
+        int numRounds = m_roundKeys.size() - 1;
 
         // Initial round. Don't do the inverse MixColumns step
         addRoundKey(numRounds);
@@ -261,7 +264,8 @@ void AES::decrypt(std::istream& ciphertext, std::ostream& plaintext, bool usePad
                 {
                     // Problem! We expected 'padding' number of padding bytes, but found fewer.
                     // The ciphertext was malformed!
-                    throw std::invalid_argument("The ciphertext is malformed.");
+                    // This could be a problem with the ciphertext. Or it could be a bad key.
+                    throw std::invalid_argument("Error: Decryption failed.");
                 }
             }
             numBytesToWrite = 16 - padding;
@@ -270,39 +274,87 @@ void AES::decrypt(std::istream& ciphertext, std::ostream& plaintext, bool usePad
     }
 }
 
-void AES::keyExpansion(const std::vector<uint8_t>& key)
+bool AES::keyExpansion(const std::vector<uint8_t>& key)
 {
-    // For now, only implement AES-128
-    assert(key.size() == 16);
+    // Holds all of the bytes of the round keys in a single vector.
+    // Helpful, because the size of the key and the size of the round keys
+    // are different for AES-192 and AES-256. This vector will be divided
+    // into sets of 16 bytes as it's put into m_roundKeys.
+    std::vector<uint8_t> roundKeysInt;
 
-    // For now, assume that we're only working with AES-128. This means 11 round keys
-    m_roundKeys.resize(11);
-
-    // The first round key is equal to the AES key
-    std::copy(key.begin(), key.end(), m_roundKeys[0].begin());
-
-    // Derive the rest of the 11 keys from the first
-    for (int k = 1; k < 11; k++)
+    switch (key.size())
     {
-        // Derive the first column of the k-th round key
+        case 16:
+            m_roundKeys.resize(11);
+            roundKeysInt.resize(176);
+            break;
+        case 24:
+            m_roundKeys.resize(13);
+            roundKeysInt.resize(216); // 216 instead of 208 in order not to run over the end
+            break;
+        case 32:
+            m_roundKeys.resize(15);
+            roundKeysInt.resize(256);
+            break;
+        default:
+            // AES key must be 128, 192, or 256 bits
+            return false;
+    }
+
+    // The first bytes of the round key are equal to the AES key
+    std::copy(key.begin(), key.end(), roundKeysInt.begin());
+
+    // Derive the rest of the bytes from the first key.size() bytes
+    int rcon = 0;
+    for (int i = key.size(); i < roundKeysInt.size(); i += key.size())
+    {
+        // Derive first 4 bytes of next set of key.size() bytes
         std::array<uint8_t, 4> g;
-        // g=last col of prev key
-        for (int i = 0; i < 4; i++) g[i] = m_roundKeys[k-1][i+12];
+        // g = four previous bytes
+        g[0] = roundKeysInt[i-4];
+        g[1] = roundKeysInt[i-3];
+        g[2] = roundKeysInt[i-2];
+        g[3] = roundKeysInt[i-1];
         // 1-byte left circular rotation
         uint8_t g0 = g[0];
-        for (int i = 0; i < 3; i++) g[i] = g[i+1];
+        for (int j = 0; j < 3; j++) g[j] = g[j+1];
         g[3] = g0;
         // SubBytes on each byte of g
-        for (int i = 0; i < 4; i++) g[i] = SBOX[g[i]];
+        for (int j = 0; j < 4; j++) g[j] = SBOX[g[j]];
         // XOR g with the round constant
-        g[0] ^= RC[k-1];
+        g[0] ^= RC[rcon];
+        rcon++;
+        // Use g to get first 4 bytes
+        for (int j = 0; j < 4; j++) roundKeysInt[i+j] = roundKeysInt[i+j-key.size()] ^ g[j];
 
-        for (int i = 0; i < 4; i++) m_roundKeys[k][i] = m_roundKeys[k-1][i] ^ g[i];
-
-        // For the rest of the bytes, XOR the corresponding byte of the previous key
-        // with the corresponding byte of the previous column of this key
-        for (int i = 4; i < 16; i++) m_roundKeys[k][i] = m_roundKeys[k-1][i] ^ m_roundKeys[k][i-4];
+        // For the rest of the bytes, XOR the corresponding byte of the previous chunk
+        // with the corresponding byte of the previous column of this chunk
+        for (int j = 4; j < key.size(); j++)
+        {
+            if (key.size() == 32 && j >= 16 && j <= 19)
+            {
+                roundKeysInt[i+j] = roundKeysInt[i+j-key.size()] ^ SBOX[roundKeysInt[i+j-4]];
+            }
+            else
+            {
+                roundKeysInt[i+j] = roundKeysInt[i+j-key.size()] ^ roundKeysInt[i+j-4];
+            }
+        }
     }
+    if (roundKeysInt.size() == 216) roundKeysInt.resize(208);
+    if (roundKeysInt.size() == 256) roundKeysInt.resize(240);
+
+    // Now pack roundKeysInt into m_roundKeys
+    int j = 0;
+    for (int k = 0; k < m_roundKeys.size(); k++)
+    {
+        for (int i = 0; i < 16; i++)
+        {
+            m_roundKeys[k][i] = roundKeysInt[j];
+            j++;
+        }
+    }
+    return true;
 }
 
 void AES::addRoundKey(int round)
