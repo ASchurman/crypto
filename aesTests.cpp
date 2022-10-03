@@ -517,7 +517,7 @@ void AES::testEncryptDecrypt()
     assert(outputFile);
 
     // Iterate over the NIST tests
-    for (int t = 1; t <= 591; t++)
+    for (int t = 1; t <= 1039; t++)
     {
         std::string keyFilename = ".\\testFiles\\key" + std::to_string(t) + ".test";
         std::ifstream keyFile;
