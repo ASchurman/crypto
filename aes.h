@@ -15,16 +15,22 @@
 class AES
 {
 public:
+    enum class Mode : uint8_t
+    {
+        ECB = 0,
+        CBC = 1
+    };
+
     AES(const std::vector<uint8_t>& key);
     ~AES() { cleanup(); }
 
     // Encrypt plaintext into ciphertext.
-    void encrypt(std::istream& plaintext, std::ostream& ciphertext);
+    void encrypt(std::istream& plaintext, std::ostream& ciphertext, Mode mode);
 
     // Decrypt ciphertext into plaintext. 'usePadding' indicates whether PKCS7 padding is used, or
     // whether no padding is used at all; usePadding=false is used for the sake of testing with
     // NIST test vectors, which are 16 bytes
-    void decrypt(std::istream& ciphertext, std::ostream& plaintext, bool usePadding = true);
+    void decrypt(std::istream& ciphertext, std::ostream& plaintext, bool usePadding = true, bool useHeader = true);
 
     // Run my collection of tests
     static void test();
@@ -65,7 +71,7 @@ private:
     // tests that use NIST's test vectors
     void testEncryptDecrypt();
     // tests that encrypt and decrypt a file and check it's not changed
-    void testEndToEnd(const std::string& plaintextFilename);
+    void testEndToEnd(const std::string& plaintextFilename, Mode mode);
     // test decrypting ciphertext with improper padding or a non-integer number of blocks
     void testMalformedCiphertext(const std::string& ciphertextFilename);
 

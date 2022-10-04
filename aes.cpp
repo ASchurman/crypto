@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <fstream>
 #include <stdexcept>
+#include <random>
 
 const std::array<uint8_t, 256> AES::SBOX =
  {0x63 ,0x7c ,0x77 ,0x7b ,0xf2 ,0x6b ,0x6f ,0xc5 ,0x30 ,0x01 ,0x67 ,0x2b ,0xfe ,0xd7 ,0xab ,0x76
@@ -168,9 +169,21 @@ void AES::cleanup()
     std::fill(m_state.begin(), m_state.end(), 0);
 }
 
-void AES::encrypt(std::istream& plaintext, std::ostream& ciphertext)
+void AES::encrypt(std::istream& plaintext, std::ostream& ciphertext, Mode mode)
 {
-    // For now, only implement ECB mode.
+    // Write header
+    ciphertext.put(static_cast<char>(mode));
+
+    // If we're in CBC mode, we'll need an IV, and we'll need to write it to the header
+    std::array<uint8_t, 16> cbcVector;
+    if (mode == Mode::CBC)
+    {
+        std::random_device rd;
+        std::uniform_int_distribution<int> dist(0, 255);
+        for (int i = 0; i < 16; i++) cbcVector[i] = static_cast<uint8_t>(dist(rd));
+        ciphertext.write(reinterpret_cast<char*>(cbcVector.data()), 16);
+    }
+
     // Iterate over the plaintext, encrypting each 16-byte block
     // and writing them to ciphertext.
     bool doneLooping = false;
@@ -187,6 +200,13 @@ void AES::encrypt(std::istream& plaintext, std::ostream& ciphertext)
                 m_state[i] = padBytes;
             }
             doneLooping = true;
+        }
+
+        // Add the previous block of ciphertext (or, for the first round, the IV,
+        // if we're doing CBC mode.
+        if (mode == Mode::CBC)
+        {
+            for (int i = 0; i < 16; i++) m_state[i] ^= cbcVector[i];
         }
 
         // Initial round key addition
@@ -207,18 +227,45 @@ void AES::encrypt(std::istream& plaintext, std::ostream& ciphertext)
         addRoundKey(numRounds);
 
         ciphertext.write(reinterpret_cast<char*>(m_state.data()), 16);
+
+        // If we're doing CBC mode, keep this ciphertext block for the next block
+        if (mode == Mode::CBC)
+        {
+            for (int i = 0; i < 16; i++) cbcVector[i] = m_state[i];
+        }
     }
     while (!doneLooping);
 }
 
-void AES::decrypt(std::istream& ciphertext, std::ostream& plaintext, bool usePadding)
+void AES::decrypt(std::istream& ciphertext, std::ostream& plaintext, bool useHeader, bool usePadding)
 {
-    // For now, only implement ECB mode.
+    // Get the header
+    std::array<uint8_t, 16> cbcVector;
+    Mode mode = Mode::ECB;
+    if (useHeader)
+    {
+        int modeVal = ciphertext.get();
+        switch (modeVal)
+        {
+            case static_cast<int>(Mode::ECB):
+                mode = Mode::ECB;
+                break;
+            case static_cast<int>(Mode::CBC):
+                mode = Mode::CBC;
+                ciphertext.read(reinterpret_cast<char*>(cbcVector.data()), 16);
+                break;
+            default:
+                throw std::invalid_argument("Error: Decryption failed. Unrecognized header of ciphertext.");
+
+        }
+    }
+
     // Iterate over the ciphertext, decrypting each 16-byte block
     // and writing them to plaintext.
     for (;;)
     {
         ciphertext.read(reinterpret_cast<char*>(m_state.data()), 16);
+        std::array<uint8_t, 16> currCiphertext = m_state;
         if (ciphertext.eof())
         {
             // We should always have an integer number of blocks when decrypting,
@@ -250,6 +297,15 @@ void AES::decrypt(std::istream& ciphertext, std::ostream& plaintext, bool usePad
 
         // Final round key addition
         addRoundKey(0);
+
+        if (mode == Mode::CBC)
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                m_state[i] ^= cbcVector[i];
+                cbcVector[i] = currCiphertext[i];
+            }
+        }
 
         // Now m_state contains the plain text of this block.
         // Before writing this to plaintext, check to see if this was the last block.

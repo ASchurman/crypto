@@ -58,10 +58,10 @@ int main(int argc, char** argv)
         return EINVAL;
     }
     
-    std::string outputFilename = "aes-output.bin";
+    std::string outputFilename = "aes-output.bin"; // default value
     optionValue(args, "-o", outputFilename);
 
-    // Get mode: encrypt or decrypt
+    // Get encrypt or decrypt
     bool eFlag = optionExists(args, "-e");
     bool dFlag = optionExists(args, "-d");
     if (eFlag && dFlag)
@@ -72,6 +72,24 @@ int main(int argc, char** argv)
     if (!eFlag && !dFlag)
     {
         std::cerr << "Error: Specify either encrypt or decrypt mode with -e or -d flags.\n";
+        return EINVAL;
+    }
+
+    // Get mode: ECB or CBC
+    std::string modeString = "cbc"; // default value
+    AES::Mode mode = AES::Mode::CBC;
+    optionValue(args, "-m", modeString);
+    if (modeString == "ecb")
+    {
+        mode = AES::Mode::ECB;
+    }
+    else if (modeString == "cbc")
+    {
+        mode = AES::Mode::CBC;
+    }
+    else
+    {
+        std::cerr << "Error: Specify a valid mode (ecb, cbc).\n";
         return EINVAL;
     }
 
@@ -129,8 +147,9 @@ int main(int argc, char** argv)
                 std::cout << "Plaintext file: " << inputFilename << "\n";
                 std::cout << "Ciphertext file: " << outputFilename << "\n";
                 std::cout << "Key file: " << keyFilename << "\n";
+                std::cout << "Mode: " << modeString << " (" << static_cast<int>(mode) << ")\n";
             }
-            aes.encrypt(inputFile, outputFile);
+            aes.encrypt(inputFile, outputFile, mode);
         }
         else
         {

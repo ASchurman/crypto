@@ -21,9 +21,13 @@ void AES::test()
     aes.testEncryptDecrypt();
     aes.cleanup();
     std::cout << "Running testEndToEnd()...\n";
-    aes.testEndToEnd(".\\testFiles\\texttest.txt");
+    aes.testEndToEnd(".\\testFiles\\texttest.txt", Mode::ECB);
     aes.cleanup();
-    aes.testEndToEnd(".\\testFiles\\largetest.txt");
+    aes.testEndToEnd(".\\testFiles\\texttest.txt", Mode::CBC);
+    aes.cleanup();
+    aes.testEndToEnd(".\\testFiles\\largetest.txt", Mode::ECB);
+    aes.cleanup();
+    aes.testEndToEnd(".\\testFiles\\largetest.txt", Mode::CBC);
     aes.cleanup();
     std::cout << "Running testMalformedCiphertext()...\n";
     aes.testMalformedCiphertext(".\\testFiles\\ciphertext1.test"); // test malformed padding
@@ -553,11 +557,14 @@ void AES::testEncryptDecrypt()
 
         // Encrypt
         assert(keyExpansion(key));
-        encrypt(plaintextFile, outputFile);
+        encrypt(plaintextFile, outputFile, Mode::ECB);
         plaintextFile.clear(); plaintextFile.seekg(0);
         outputFile.clear(); outputFile.seekg(0);
 
-        // Verify that output == ciphertext that we expected
+        // Verify that output == ciphertext that we expected.
+        // Ignore the first byte, since it will contain the header indicating ECB mode.
+        // Ignore the final block of padding, since the NIST vectors don't have them.
+        outputFile.get();
         outputFile.read(output.data(), 16);
         for (int i = 0; i < 16; i++)
         {
@@ -566,8 +573,9 @@ void AES::testEncryptDecrypt()
         outputFile.clear(); outputFile.seekg(0);
 
         // Decrypt
-        // Don't use padding for decryption, since the NIST test vectors are 16 bytes
-        decrypt(ciphertextFile, outputFile, false);
+        // Don't use padding for decryption, since the NIST test vectors are 16 bytes.
+        // And NIST vectors don't have a header, so don't use that either.
+        decrypt(ciphertextFile, outputFile, false, false);
         ciphertextFile.clear(); ciphertextFile.seekg(0);
         outputFile.clear(); outputFile.seekg(0);
 
@@ -589,7 +597,7 @@ void AES::testEncryptDecrypt()
     std::filesystem::remove(outputFilename);
 }
 
-void AES::testEndToEnd(const std::string& plaintextFilename)
+void AES::testEndToEnd(const std::string& plaintextFilename, Mode mode)
 {
     std::ifstream plaintextFile;
     plaintextFile.open(plaintextFilename, std::ios::in | std::ios::binary);
@@ -613,7 +621,7 @@ void AES::testEndToEnd(const std::string& plaintextFilename)
     getRandomKey(key, 16);
     assert(keyExpansion(key));
 
-    encrypt(plaintextFile, ciphertextFile);
+    encrypt(plaintextFile, ciphertextFile, mode);
     plaintextFile.clear(); plaintextFile.seekg(0);
     ciphertextFile.clear(); ciphertextFile.seekg(0);
 

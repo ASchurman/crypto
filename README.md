@@ -1,6 +1,6 @@
 Let's implement some cryptographic algorithms for fun!  **This project is just for fun. Obviously don't use any of this code in any security-critical application!**
 
-For now, only AES in ECB mode is implemented.
+For now, AES-128, AES-192, and AES-256 are implemented; ECB and CBC modes are supported.
 
 ## Compiling
 The supplied makefile is for the Windows NMAKE utility. Running `nmake` will produce aes.exe.
@@ -21,6 +21,8 @@ Optional arguments include:
 
 * `-o [output file]`
     Indicates where the output of the encrypt/decrypt operation should be written. Defaults to aes-output.bin. Will not overwrite existing file unless the -f option is used.
+* `-m [mode]`
+    Indicates what mode of operation to use for AES encryption. Valid modes are `cbc` and `ecb`, with the default being `cbc`. The mode is specified in the header of an encrypted file, so this option is ignored when `-d` is specified.
 * `-f`
     Force. Overwrites output file if it already exists.
 * `-v`
@@ -38,6 +40,6 @@ Before running the tests with `aes.exe -t`, the test files must be generated in 
 
 ## Roadmap
 As my leisure time permits, here are my future tasks for this project:
-- Implement AES modes other than the ECB mode, which, while simple, should never be used. Start with CBC mode.
+- Implement other AES modes of operation.
 - Derive AES keys from passwords rather than using a key read from a file.
 - Implement other cryptographic algorithms.
