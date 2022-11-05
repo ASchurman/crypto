@@ -6,11 +6,11 @@ For now, AES-128, AES-192, and AES-256 are implemented; ECB and CBC modes are su
 The supplied makefile is for the Windows NMAKE utility. Running `nmake` will produce aes.exe.
 
 ## Running
-Run aes.exe from the command line, with the first argument being the file to encrypt or decrypt:
+Run aes.exe from the command line:
 ```
-aes.exe [plaintext/ciphertext file] [options]
+aes.exe [options] inputFile outputFile
 ```
-Other required arguments include:
+Required options include:
 
 * `-k [key file]`
     Provides the file containing AES key. The file must contain exactly 16, 24, or 32 bytes.
@@ -19,8 +19,6 @@ Other required arguments include:
 
 Optional arguments include:
 
-* `-o [output file]`
-    Indicates where the output of the encrypt/decrypt operation should be written. Defaults to aes-output.bin. Will not overwrite existing file unless the -f option is used.
 * `-m [mode]`
     Indicates what mode of operation to use for AES encryption. Valid modes are `cbc` and `ecb`, with the default being `cbc`. The mode is specified in the header of an encrypted file, so this option is ignored when `-d` is specified.
 * `-f`
@@ -32,7 +30,7 @@ Optional arguments include:
 
 For example, to encrypt a file secrets.txt to a file encryptedSecrets.bin, using an AES key in the file key.bin, run:
 ```
-aes.exe secrets.txt -e -k key.bin -o encryptedSecrets.bin
+aes.exe -e -k key.bin secrets.txt encryptedSecrets.bin
 ```
 
 ## Testing
