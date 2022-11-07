@@ -38,19 +38,18 @@ int main(int argc, char** argv)
     encryptArg.shortName = "-e";
     encryptArg.nargs = 0;
     encryptArg.help = "Encrypt the input file. (Mutually exclusive with --decrypt.)";
-    ap.addArgument(encryptArg);
     bool encrypt;
-
     Argument decryptArg("--decrypt");
     decryptArg.shortName = "-d";
     decryptArg.nargs = 0;
     decryptArg.help = "Decrypt the input file. (Mutually exclusive with --encrypt.)";
-    ap.addArgument(decryptArg);
     bool decrypt;
+    ap.addMutuallyExclusiveArguments({encryptArg, decryptArg}, true);
 
     Argument modeArg("--mode");
     modeArg.shortName = "-m";
     modeArg.help = "The mode of operation to use for AES encryption. Valid modes are cbc and ecb, with the default being cbc. The mode is specified in the header of an encrypted file, so this option is ignored when -d is specified.";
+    modeArg.choices = {"cbc", "ecb"};
     modeArg.defaultValue = "cbc";
     ap.addArgument(modeArg);
     string mode;
@@ -84,15 +83,7 @@ int main(int argc, char** argv)
         key = ap.get<string>("--key");
         encrypt = ap.get<bool>("--encrypt");
         decrypt = ap.get<bool>("--decrypt");
-        if ((!encrypt && !decrypt) || (encrypt && decrypt))
-        {
-            throw std::invalid_argument("Specify exactly 1 of --encrypt and --decrypt.");
-        }
         mode = ap.get<string>("--mode");
-        if (mode != "ecb" && mode != "cbc")
-        {
-            throw std::invalid_argument("--mode must be cbc or ecb");
-        }
         force = ap.get<bool>("--force");
         verbose = ap.get<bool>("--verbose");
         test = ap.get<bool>("--test");
@@ -100,6 +91,7 @@ int main(int argc, char** argv)
     catch(const std::exception& e)
     {
         std::cerr << e.what() << '\n';
+        exit(1);
     }
 
     // Check for whether we're testing

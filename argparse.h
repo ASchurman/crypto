@@ -15,12 +15,13 @@ namespace argparse
     {
     public:
         std::string name; // determine whether this is positional vs optional based on -- / -
-        std::string shortName; // defaults to empty string
+        std::string shortName; // Must be '-' followed by 1 char. Ignored for positionals. Defaults to empty string.
         unsigned int nargs; // default to 1
         bool required; // default false for optionals, true for positionals
         std::variant<std::string, std::vector<std::string>> defaultValue;
         std::string help; // defaults to empty string
         std::string metavar; // defaults to NAME for optionals, name for positionals
+        std::vector<std::string> choices; // Valid values for this option. If empty, all values are valid.
         
         Argument(const std::string& name);
         bool isPositional() const;
@@ -33,10 +34,22 @@ namespace argparse
     class ArgumentParser
     {
     public:
+        // Adds an Argument specification to the parser. Each specification must be added to the parser
+        // before calling the parse function.
         void addArgument(const Argument& arg);
 
-        // Parses the command line arguments. If -h / --help is found, then prints the help info
-        // and then calls exit(0).
+        // Adds a group of mutually exclusive optional Arguments. Each argument must be an option,
+        // and none of them can be required options.
+        // If the parameter required == true, then exactly 1 of these mutually exclusive arguments
+        // must be present.
+        // Throws if any of the args are positional, or if any are marked required, or if only 1 arg
+        // is provided.
+        // Once an Argument has been added with this function, do not add it with addArgument. Use
+        // either this function or addArgument to add an Argument.
+        void addMutuallyExclusiveArguments(const std::vector<Argument>& args, bool required=false);
+
+        // Parses the command line arguments. (If -h / --help is found, then prints the help info
+        // and then calls exit(0).)
         void parse(int argc, char** argv);
         void parse(const std::vector<std::string>& args);
 
@@ -67,17 +80,17 @@ namespace argparse
             }
         }
 
-        void printUsage(const std::string& programName);
-        void printHelp(const std::string& programName);
-
     private:
+        std::string programName;
+
         // The optional arguments, in the order given to us by addArgument
         std::vector<Argument> optionals;
 
         // Maps optional arg name to index in the optionals vector
         std::unordered_map<std::string, int> optIndex;
 
-        // Maps optional arg shortName to name. Only add to this when shortName is specified (not "")
+        // Maps optional arg shortName to name. Only add to this when shortName is specified (not "").
+        // Strip initial '-' before adding the shortName.
         std::unordered_map<std::string, std::string> optNames;
 
         // Positional arguments, in the order given to us by addArgument (and thus in the order
@@ -87,6 +100,31 @@ namespace argparse
         // Values parsed from the arguments. If a non-required argument wasn't found, put the
         // Argument's default value here. Keyed by Argument name.
         std::unordered_map<std::string, std::vector<std::string>> values;
+
+        struct ExclusiveSet
+        {
+        public:
+            int firstIndex; // First index in optionals vector of the exclusive set
+            int lastIndex;  // Last index in optionals vector of the exclusive set
+            bool required;  // Is user required to provide exactly 1 opt from this set?
+        };
+        std::vector<ExclusiveSet> exclusiveSets;
+
+        // Map argument name to index in the exclusiveSets vector
+        std::unordered_map<std::string, int> exclusiveIndices;
+
+        void validateValues(const std::vector<Argument>& arguments);
+        std::string getArgumentUsage(const Argument& arg);
+        std::vector<std::string> expandShortArgs(const std::vector<std::string>& args);
+        int getNArgs(const std::vector<std::string>& args,
+                     int argsIndex,
+                     int nargs,
+                     const std::string& argName,
+                     std::vector<std::string>& outArgs,
+                     bool ignoreFlags);
+        
+        void printUsage();
+        void printHelp();
 
         template <typename T>
         static T convertFromString(const std::string& str, const std::string& argName)
